@@ -18,19 +18,17 @@ Analysis of how Autoencoders compress data into a bottleneck (latent space) and 
 * **Dataset:** MNIST
 * **Goal:** Image reconstruction and visualization of the latent space.
 
-### 2. Pre-training with Autoencoders
-Testing if an AE can serve as a feature extractor for more complex tasks.
-* **Dataset:** CIFAR-10
-* **Goal:** Use the encoder part to "pre-learn" features before a classification task.
-
-### 3. VAE: From Reconstruction to Generation
+### 2. VAE: From Reconstruction to Generation
 Transitioning to Variational Autoencoders by adding a probabilistic layer to the latent space.
 * **Dataset:** [Cat Samples made of different sources :](https://github.com/fferlito/Cat-faces-dataset)
 * **Goal:** Generate new cat images.
 
-### 4. GAN: Adversarial Training
+### 3. GAN: Adversarial Training
 * **Goal:** Achieve higher image sharpness and overcome the "blurriness" of VAEs.
 
+### 4. Introduction to Pixel CNN
+
+### 5.advandced GAN
 
 ## Bibliographie
 
