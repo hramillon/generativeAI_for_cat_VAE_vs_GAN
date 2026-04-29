@@ -9,4 +9,5 @@ training_params:
   batch_size: 100
 
 paths:
-  save_path: "training/vae_mnist.keras"
+  save_encoder: "training/vae_mnist.keras"
+  save_decoder: "training/decoder_vae.keras"

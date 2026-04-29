@@ -30,7 +30,6 @@ encoder = ae.get_layer('functional')
 n_samples = 2000
 codes_latents = encoder.predict(x_test[:n_samples])
 
-"""
 tsne = TSNE(n_components=2, perplexity=30, random_state=42)
 #pca = PCA(n_components=2)
 codes_2d = tsne.fit_transform(codes_latents)
@@ -43,7 +42,7 @@ plt.xlabel("Composante Principale 1")
 plt.ylabel("Composante Principale 2")
 plt.grid(True, linestyle='--', alpha=0.5)
 plt.show()
-"""
+
 """ Trajet dans le vide """
  
 code_A = encoder.predict(x_test[0:1])

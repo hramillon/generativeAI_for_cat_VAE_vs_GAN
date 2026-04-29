@@ -141,7 +141,8 @@ vae.compile(
 
 vae.fit(x_train, epochs=epochs, batch_size=batch_size, verbose=1)
 
-paths = config['paths']['save_path']
+save_encoder = config['paths']['save_encoder']
+save_decoder = config['paths']['save_decoder']
 
-encoder.save("models/encoder_vae.keras")
-decoder.save("models/decoder_vae.keras")
+encoder.save(save_encoder)
+decoder.save(save_decoder)
