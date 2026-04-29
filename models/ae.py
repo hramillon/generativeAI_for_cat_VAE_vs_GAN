@@ -1,7 +1,6 @@
 import tensorflow as tf
-from tensorflow import keras
+from tensorflow.keras import layers, models, K, Model
 import numpy as np
-
 
 # Charger les données MNIST
 mnist = keras.datasets.mnist
