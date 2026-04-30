@@ -4,5 +4,3 @@ env/
 *.py[cod]
 ressources/
 .ipynb_checkpoints/
-*.keras
-*.h5
