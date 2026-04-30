@@ -4,3 +4,4 @@ PyYAML
 matplotlib
 scikit-learn
 jupyterlab
+seaborn
