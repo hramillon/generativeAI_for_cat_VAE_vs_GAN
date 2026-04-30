@@ -195,19 +195,11 @@ vae.compile(
     optimizer=keras.optimizers.Adam(learning_rate=learning_rate),
 )
 
-early_stopping = EarlyStopping(
-    monitor="total_loss",
-    patience=5,
-    mode="min",
-    restore_best_weights=True
-)
-
 vae.fit(train, epochs=epochs, batch_size=batch_size, verbose=1)
 
 history = vae.fit(
     train, 
     epochs=epochs, 
-    callbacks=[early_stopping],
     verbose=1
 )
 
