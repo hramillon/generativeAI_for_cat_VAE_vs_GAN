@@ -162,7 +162,7 @@ class VAE(models.Model):
         with tf.GradientTape() as tape:
             z_mean, z_log_var, reconstruction = self(data)
             reconstruction_loss = tf.reduce_mean(
-                1000 *
+                2000 *
                 losses.binary_crossentropy(
                     data, reconstruction, axis=(1,2,3)
                 )

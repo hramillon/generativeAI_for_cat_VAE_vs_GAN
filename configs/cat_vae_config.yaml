@@ -1,5 +1,5 @@
 model_params:
-  latent_dim: 512
+  latent_dim: 500
   conv_filters: [64, 128, 256, 512]
   kernel_size: 3
 
