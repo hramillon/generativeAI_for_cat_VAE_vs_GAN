@@ -20,8 +20,6 @@ x_test = x_test.reshape(-1, 28, 28, 1).astype('float32') / 255.0
 x_train = np.pad(x_train, ((0,0), (2,2), (2,2), (0,0)), mode='constant')
 x_test = np.pad(x_test, ((0,0), (2,2), (2,2), (0,0)), mode='constant')
 
-print(f"Nouvelle forme : {x_train.shape}")
-
 latent_dim = config['model_params']['latent_dim']
 conv_filters = config['model_params']['conv_filters']
 k = config['model_params']['kernel_size']

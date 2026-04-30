@@ -60,7 +60,7 @@ code_B = res_B[0]
 
 steps = 10
 plt.figure(figsize=(20, 4))
-plt.suptitle("Interpolation : Chat A vers Chat B", fontsize=14)
+plt.suptitle("Interpolation : chat A vers chat B", fontsize=14)
 
 for i in range(steps):
     alpha = i / (steps - 1)
@@ -79,7 +79,7 @@ code_real = encoder.predict(x_test[2:3])[0]
 code_random = np.random.normal(size=(1, LATENT_DIM))
 
 plt.figure(figsize=(20, 4))
-plt.suptitle("Morphing : Chat Réel vers Chat 'Rêvé' (Aléatoire)", fontsize=14)
+plt.suptitle("Morphing : chat réel vers chat aléatoire", fontsize=14)
 
 for i in range(steps):
     alpha = i / (steps - 1)
