@@ -2,6 +2,8 @@ venv/
 .venv/
 env/
 *.py[cod]
+ressources/
+.ipynb_checkpoints/
 
 training/
 *.keras

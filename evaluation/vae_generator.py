@@ -25,18 +25,16 @@ latent_dim = config['model_params']['latent_dim']
 save_encoder = config['paths']['save_encoder']
 save_decoder = config['paths']['save_decoder']
 
-# Charger l'encodeur et le décodeur séparément (plus simple pour le VAE)
+# Charger l'encodeur et le décodeur séparément
 encoder = tf.keras.models.load_model(save_encoder, custom_objects={'Sampling': Sampling})
 decoder = tf.keras.models.load_model(save_decoder)
 
 
 """ carte des territoires  """
 
-# 1. Obtenir les codes latents (on prend z_mean pour voir la structure apprise)
 n_samples = 5000
 z_mean, _, _ = encoder.predict(x_test[:n_samples])
 
-# 2. Choisir quelques dimensions à afficher (par exemple les 6 premières)
 num_dims_to_plot = min(6, latent_dim)
 
 plt.figure(figsize=(15, 10))
@@ -44,10 +42,8 @@ plt.suptitle("Distribution des dimensions latentes (doit ressembler à N(0,1))",
 
 for i in range(num_dims_to_plot):
     plt.subplot(2, 3, i + 1)
-    # Histogramme + Courbe de densité
     sns.histplot(z_mean[:, i], kde=True, color="skyblue", stat="density")
     
-    # Superposer une vraie Normale Standard pour comparer
     x = np.linspace(-4, 4, 100)
     p = (1/np.sqrt(2*np.pi)) * np.exp(-0.5 * x**2)
     plt.plot(x, p, 'r--', lw=2, label='N(0,1) théorique')
