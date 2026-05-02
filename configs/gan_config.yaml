@@ -5,8 +5,8 @@ model_params:
 
 training_params:
   learning_rate: 0.0002
-  epochs: 5
-  batch_size: 100
+  epochs: 100
+  batch_size: 128
 
 data_params:
   image_size : 64

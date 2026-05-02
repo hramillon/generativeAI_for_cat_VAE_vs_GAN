@@ -38,7 +38,7 @@ n_samples = min(len(x_test), 2000)
 z_mean, _, _ = encoder.predict(x_test[:n_samples])
 
 plt.figure(figsize=(15, 8))
-plt.suptitle("Analyse de l'Espace Latent des Chats", fontsize=16)
+plt.suptitle("Espace latent des chats", fontsize=16)
 
 for i in range(6):
     plt.subplot(2, 3, i + 1)
