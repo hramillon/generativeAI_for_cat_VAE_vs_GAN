@@ -1,0 +1,17 @@
+model_params:
+  latent_dim: 200
+  conv_filters: [64, 128, 256, 512,1]
+  kernel_size: 3
+
+training_params:
+  learning_rate: 0.00005
+  epochs: 10
+  batch_size: 128
+
+data_params:
+  image_size : 64
+
+paths:
+  ressources  : "ressources/"
+  save_generator: "training/wgan_generator.keras"
+  save_discriminator: "training/wgan_discriminator_cat_vae.keras"
