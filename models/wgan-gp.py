@@ -7,7 +7,7 @@ import yaml
 import matplotlib.pyplot as plt
 from tensorflow.keras import losses, metrics
 import os
-
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 with open("configs/cat_wgan.yaml", "r") as f:
     config = yaml.safe_load(f)
 
@@ -44,8 +44,9 @@ train = train.prefetch(buffer_size=tf.data.AUTOTUNE)
 def build_generator(latent_dim):
     model = models.Sequential(name="generator")
     
-    model.add(layers.Dense(4 * 4 * 512, input_dim=latent_dim))
-    model.add(layers.Reshape((4, 4, 512)))
+    model.add(layers.Input(shape=(latent_dim,)))
+    model.add(layers.Dense((4* 4*512)))
+    model.add(layers.Reshape((4,4,512)))
     
     model.add(layers.UpSampling2D(size=(2, 2), interpolation="bilinear"))
     model.add(layers.Conv2D(256, 3, padding="same"))
@@ -68,6 +69,7 @@ def build_generator(latent_dim):
 
 def build_critic():
     model = models.Sequential(name="critic")
+    model.add(layers.Input(shape=(64,64,3)))
     
     model.add(layers.Conv2D(64, 4, strides=2, padding="same", input_shape=(64, 64, 3)))
     model.add(layers.LeakyReLU(0.2))
@@ -102,6 +104,10 @@ class WGAN(keras.Model):
         self.latent_dim = latent_dim
         self.gp_weight = gp_weight
         self.n_critic = n_critic
+
+    def on_epoch_end(self, epoch, logs=None):
+        if (epoch + 1)%10 ==0 or epoch == 0 :
+		self.model.generator.save(d=f"training/wgan_gen_eckpoints/gen_epoch_{epoch+1}.keras")
 
     def compile(self, g_optimizer, c_optimizer):
         super().compile()
@@ -168,10 +174,9 @@ checkpoint_path = "training/wgan_gen_checkpoints/gen_at_epoch_{epoch:02d}.keras"
 
 model_checkpoint = keras.callbacks.ModelCheckpoint(
     filepath=checkpoint_path,
-    save_weights_only=False, # On veut tout le modèle .keras
-    monitor="g_loss", # Pas idéal en GAN mais permet de garder une trace
-    save_freq='epoch',
-    period=10 # Sauvegarde toutes les 10 époques
+    save_weights_only=False, 
+    monitor="g_loss", 
+    period=234 * 10
 )
 
 os.makedirs("training/wgan_gen_checkpoints", exist_ok=True)
