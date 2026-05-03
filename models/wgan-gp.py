@@ -100,7 +100,7 @@ def build_critic():
     return model
 
 class WGAN(keras.Model):
-    def __init__(self, generator, critic, latent_dim, gp_weight=10.0, n_critic=5):
+    def __init__(self, generator, critic, latent_dim, gp_weight=20.0, n_critic=5):
         super().__init__()
         self.generator = generator
         self.critic = critic
