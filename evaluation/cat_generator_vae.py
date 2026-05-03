@@ -32,10 +32,19 @@ def load_test_cats(path, n=100):
 dataset_path = "ressources/*" 
 files = glob.glob(dataset_path)[:2000]
 
+if not files:
+    print(f"No files found in {dataset_path}")
+    exit(1)
+
 x_test = np.array([img_to_array(load_img(f, target_size=(64, 64))) / 255.0 for f in files])
 
 n_samples = min(len(x_test), 2000)
-z_mean, _, _ = encoder.predict(x_test[:n_samples])
+
+prediction = encoder.predict(x_test[:n_samples])
+if isinstance(prediction, (list, tuple)):
+    z_mean = prediction[0]
+else:
+    z_mean = prediction
 
 plt.figure(figsize=(15, 8))
 plt.suptitle("Espace latent des chats", fontsize=16)

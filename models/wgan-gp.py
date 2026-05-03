@@ -6,6 +6,7 @@ import numpy as np
 import yaml
 import matplotlib.pyplot as plt
 from tensorflow.keras import losses, metrics
+import os
 
 with open("configs/cat_wgan.yaml", "r") as f:
     config = yaml.safe_load(f)
@@ -79,6 +80,11 @@ def build_critic():
     model.add(layers.LayerNormalization())
     model.add(layers.LeakyReLU(0.2))
     
+    model.add(layers.Conv2D(256, 3, strides=1, padding="same")) 
+    model.add(layers.LayerNormalization())
+    model.add(layers.LeakyReLU(0.2))
+    model.add(layers.Dropout(0.3)) 
+
     model.add(layers.Conv2D(512, 4, strides=2, padding="same"))
     model.add(layers.LayerNormalization())
     model.add(layers.LeakyReLU(0.2))
@@ -151,14 +157,33 @@ class WGAN(keras.Model):
 generator = build_generator(latent_dim)
 critic = build_critic()
 
-wgan = WGAN(generator=generator, critic=critic, latent_dim=latent_dim)
+wgan = WGAN(generator=generator, critic=critic, latent_dim=latent_dim, n_critic=10)
 
 wgan.compile(
-    g_optimizer=keras.optimizers.Adam(learning_rate=0.0001, beta_1=0.0, beta_2=0.9),
-    c_optimizer=keras.optimizers.Adam(learning_rate=0.0001, beta_1=0.0, beta_2=0.9)
+    g_optimizer=keras.optimizers.Adam(learning_rate=0.00005, beta_1=0.0, beta_2=0.9),
+    c_optimizer=keras.optimizers.Adam(learning_rate=0.0002, beta_1=0.0, beta_2=0.9)
 )
 
-history = wgan.fit(train, epochs=epochs)
+checkpoint_path = "training/wgan_gen_checkpoints/gen_at_epoch_{epoch:02d}.keras"
+
+model_checkpoint = keras.callbacks.ModelCheckpoint(
+    filepath=checkpoint_path,
+    save_weights_only=False, # On veut tout le modèle .keras
+    monitor="g_loss", # Pas idéal en GAN mais permet de garder une trace
+    save_freq='epoch',
+    period=10 # Sauvegarde toutes les 10 époques
+)
+
+os.makedirs("training/wgan_gen_checkpoints", exist_ok=True)
+
+img_monitor = GANMonitor(num_img=16, latent_dim=latent_dim)
+
+# Dans ton fit
+history = wgan.fit(
+    train, 
+    epochs=epochs, 
+    callbacks=[img_monitor, model_checkpoint]
+)
 
 save_gen_path = config['paths']['save_generator']
 save_crit_path = config['paths']['save_discriminator']
