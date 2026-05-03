@@ -1,3 +1,7 @@
+import os
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers, models, Model
@@ -6,8 +10,7 @@ import numpy as np
 import yaml
 import matplotlib.pyplot as plt
 from tensorflow.keras import losses, metrics
-import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+
 with open("configs/cat_wgan.yaml", "r") as f:
     config = yaml.safe_load(f)
 
@@ -105,10 +108,6 @@ class WGAN(keras.Model):
         self.gp_weight = gp_weight
         self.n_critic = n_critic
 
-    def on_epoch_end(self, epoch, logs=None):
-        if (epoch + 1)%10 ==0 or epoch == 0 :
-		self.model.generator.save(d=f"training/wgan_gen_eckpoints/gen_epoch_{epoch+1}.keras")
-
     def compile(self, g_optimizer, c_optimizer):
         super().compile()
         self.g_optimizer = g_optimizer
@@ -160,6 +159,30 @@ class WGAN(keras.Model):
         self.g_loss_metric.update_state(g_loss)
         return {"c_loss": self.c_loss_metric.result(), "g_loss": self.g_loss_metric.result()}
 
+class GANMonitor(keras.callbacks.Callback):
+    def __init__(self, num_img=16, latent_dim=200):
+        super().__init__()
+        self.num_img = num_img
+        self.latent_dim = latent_dim
+        self.seed = tf.random.normal([num_img, latent_dim])
+
+    def on_epoch_end(self, epoch, logs=None):
+        if (epoch + 1) % 10 == 0 or epoch == 0:
+            generated_images = self.model.generator(self.seed, training=False)
+            generated_images = (generated_images * 127.5) + 127.5
+            plt.figure(figsize=(8, 8))
+            for i in range(self.num_img):
+                plt.subplot(4, 4, i+1)
+                img = keras.utils.array_to_img(generated_images[i])
+                plt.imshow(img)
+                plt.axis('off')
+            plt.savefig(f"training/gen_img_epoch_{epoch+1}.png")
+            plt.close()
+            # Sauvegarde robuste du générateur
+            self.model.generator.save(f"training/wgan_gen_checkpoints/gen_epoch_{epoch+1}.keras")
+
+os.makedirs("training/wgan_gen_checkpoints", exist_ok=True)
+
 generator = build_generator(latent_dim)
 critic = build_critic()
 
@@ -170,25 +193,9 @@ wgan.compile(
     c_optimizer=keras.optimizers.Adam(learning_rate=0.0002, beta_1=0.0, beta_2=0.9)
 )
 
-checkpoint_path = "training/wgan_gen_checkpoints/gen_at_epoch_{epoch:02d}.keras"
-
-model_checkpoint = keras.callbacks.ModelCheckpoint(
-    filepath=checkpoint_path,
-    save_weights_only=False, 
-    monitor="g_loss", 
-    period=234 * 10
-)
-
-os.makedirs("training/wgan_gen_checkpoints", exist_ok=True)
-
 img_monitor = GANMonitor(num_img=16, latent_dim=latent_dim)
 
-# Dans ton fit
-history = wgan.fit(
-    train, 
-    epochs=epochs, 
-    callbacks=[img_monitor, model_checkpoint]
-)
+history = wgan.fit(train, epochs=epochs, callbacks=[img_monitor])
 
 save_gen_path = config['paths']['save_generator']
 save_crit_path = config['paths']['save_discriminator']
@@ -197,8 +204,8 @@ generator.save(save_gen_path)
 critic.save(save_crit_path)
 
 plt.figure(figsize=(10, 5))
-plt.plot(history.history["c_loss"], label="Critique (C)")
-plt.plot(history.history["g_loss"], label="Générateur (G)")
+plt.plot(history.history["c_loss"], label="Critique")
+plt.plot(history.history["g_loss"], label="Générateur")
 plt.title("Évolution des Pertes (WGAN-GP)")
 plt.xlabel("Epoch")
 plt.ylabel("Loss")
