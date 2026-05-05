@@ -1,0 +1,14 @@
+# configs/pixelcnn_config.yaml
+model:
+  input_shape: [32, 32, 1]
+  num_layers: 12
+  filters: 128
+  kernel_size: 7
+
+training:
+  batch_size: 128
+  epochs: 10
+  learning_rate: 0.001
+
+generation:
+  num_samples: 16
