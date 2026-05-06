@@ -93,8 +93,23 @@ $$ \frac{|D(x_1) - D(x_2)|}{|x_1 - x_2|} \leq 1 $$
 In other words, we limit the rate of change between predictions. This ensures the model is stable because the gradient norm is bounded (it must be less than or equal to 1), preventing the "exploding gradient" problem.
 
 ### 4. Introduction to PixelCNN
-* **Dataset:** MNIST.
+* **Dataset:** MNIST. the cat dataset would ask too much computanional power.
 * **Goal:** Observe how an autoregressive model produces images pixel by pixel, conditioned on previous ones.
+
+<table>
+    <tr>
+        <td width="50%">
+        <img src="md_ress/pixelCNN.png" alt="Generated Cats" width="100%">
+        </td>
+    </tr>
+</table>
+
+Proposed by van den Oord in 2016, the goal is to generate a pixel according to the others. To do that, we introduce **masked convolutive layers**.
+
+The goal is simple: every pixel before the current pixel we want to generate is marked as 1 (we apply the kernel to them), and if they are after, we apply 0 because we don't use them to generate the current pixel.
+
+basically it treats image generation as a sequence, predicting one pixel at a time: $P(x) = \prod P(x_i | x_{<i})$.
+Unlike GANs, PixelCNN minimizes the **Negative Log-Likelihood (NLL)**. It is much more stable to train but slower to generate, as pixels must be created one by one.
 
 ### 5. RealNVP (Flow-based Model)
 * **Concept:** Implementing non-volume preserving (NVP) transformations.

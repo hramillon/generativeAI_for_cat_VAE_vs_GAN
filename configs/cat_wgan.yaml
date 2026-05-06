@@ -5,7 +5,7 @@ model_params:
 
 training_params:
   learning_rate: 0.00005
-  epochs: 100
+  epochs: 50
   batch_size: 128
 
 data_params:
