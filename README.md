@@ -32,6 +32,66 @@ Implementation of the minimax game between a Generator and a Discriminator.
 * **Goal:** Achieve higher image sharpness and overcome the "blurriness" often found in VAEs.
 * **Focus:** Using Wasserstein GAN with Gradient Penalty (WGAN-GP) for improved training stability.
 
+first result with a **WGAN-GP**
+my hyperparameters choices
+* **Latent dim :** 128,  the generator was unstable with 256 dimensions and not enough powerful with 64.
+* **Learning rate :** 0.00005, Set low for training stability.
+* **n_critic:** 8, Used to prevent the critic from being too weak at the start or too dominant at the end.
+
+<table>
+    <tr>
+        <td width="50%">
+        <img src="md_ress/wgan.png" alt="Generated Cats" width="100%">
+        </td>
+        <td width="50%">
+        <img src="md_ress/wgan_loss_history.png" alt="WGAN Loss Plot" width="100%">
+        </td>
+    </tr>
+</table>
+when in 2017 Arjpvsky introduce this new GAN, the goal was to stabilize the training of GAN's. For that the Wgan:
+* increases the stability of the optimization
+* introduce a loss which gives a better correlation between the generator and the quality of the sample
+
+#### Wasserstein Loss
+
+Original GANs use **Binary Cross Entropy**:
+
+$$- \frac{1}{n} \sum_{i=1}^{n} [y_i \log(p_i) + (1-y_i) \log(1-p_i)]$$
+
+For the Discriminator $D$:
+* **Real data** ($y_i=1$): $p_i = D(x)$
+* **Generated data** ($y_i=0$): $p_i = D(G(z))$
+
+The loss becomes for the discrimintator:
+$$- (\mathbb{E}_{x}[\log D(x)] + \mathbb{E}_{z}[\log(1 - D(G(z)))])$$
+for the generator
+$$- (\mathbb{E}_{x}[\log D(G(z))])$$
+
+**The Problem:**
+If the Generator is weak, images are too easy to recognize. The Discriminator reaches perfection too quickly, leading to **vanishing gradients**. The Generator stops improving because the loss signal becomes flat.
+
+**Wasserstein Loss** addresses this by measuring the distance between distributions instead of performing binary classification.
+
+1. **Labels**: $y_i \in \{1, -1\}$ instead of $\{0, 1\}$.
+2. **Output**: $D(x)$ is no longer a probability in $[0, 1]$, but a real value score in $\mathbb{R}$.
+
+$$ - \frac{1}{n} \sum_{i=1}^{n} [y_i p_i] $$
+
+**Impact on minimization:**
+
+* **Cross-Entropy**: The loss saturates. Minimization stops because the gradient vanishes when the Discriminator is too accurate.
+* **Wasserstein**: The loss provides a smooth, linear gradient. Minimization continues even if the Discriminator is perfect, because the score represents distance rather than a 0/1 probability.
+
+**Lipschitz constraints**
+
+This new loss has an issue: its value can explode to infinity. To prevent this in a neural network, the WGAN paper requires the critic function to be *1-Lipschitz*.
+
+This constraint means that for a critic function $D$ and for two images $x_1$ and $x_2$, we need:
+
+$$ \frac{|D(x_1) - D(x_2)|}{|x_1 - x_2|} \leq 1 $$
+
+In other words, we limit the rate of change between predictions. This ensures the model is stable because the gradient norm is bounded (it must be less than or equal to 1), preventing the "exploding gradient" problem.
+
 ### 4. Introduction to PixelCNN
 * **Dataset:** MNIST.
 * **Goal:** Observe how an autoregressive model produces images pixel by pixel, conditioned on previous ones.
