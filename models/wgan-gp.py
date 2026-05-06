@@ -39,11 +39,20 @@ train_data = tf.keras.utils.image_dataset_from_directory(
     seed=42
 )
 
-def preprocess(img):
-    # Normalisation entre -1 et 1 (standard pour WGAN)
-    return (tf.cast(img, "float32") - 127.5) / 127.5
+data_augmentation = tf.keras.Sequential([
+    layers.RandomFlip("horizontal"),
+    layers.RandomRotation(0.05), 
+    layers.RandomZoom(0.1),
+])
 
-train = train_data.map(preprocess)
+def preprocess(img):
+    # 1. Normalisation entre -1 et 1
+    img = (tf.cast(img, "float32") - 127.5) / 127.5
+    # 2. Augmentation (uniquement pendant l'entraînement)
+    img = data_augmentation(img, training=True)
+    return img
+
+train = train_data.map(preprocess, num_parallel_calls=tf.data.AUTOTUNE)
 train = train.prefetch(buffer_size=tf.data.AUTOTUNE)
 
 # --- ARCHITECTURE ---
@@ -74,7 +83,6 @@ def build_critic():
     model.add(layers.LeakyReLU(0.2))
     
     model.add(layers.Conv2D(128, 4, strides=2, padding="same"))
-    # model.add(layers.LayerNormalization()) # Optionnel, retire-le si ça diverge encore
     model.add(layers.LeakyReLU(0.2))
     
     model.add(layers.Conv2D(256, 4, strides=2, padding="same"))
@@ -178,14 +186,19 @@ class GANMonitor(keras.callbacks.Callback):
 
 # --- EXECUTION ---
 os.makedirs("training/wgan_gen_checkpoints", exist_ok=True)
+os.makedirs("training/wgan_cri_checkpoints", exist_ok=True)
 
 generator = build_generator(latent_dim)
 critic = build_critic()
+
+generator.load_weights("training/wgan_gen_checkpoints/gen_epoch_100.keras")
+critic.load_weights("training/wgan_cri_checkpoints/cri_epoch_100.keras")
+
 wgan = WGAN(generator=generator, critic=critic, latent_dim=latent_dim)
 
 wgan.compile(
-    g_optimizer=Adam(learning_rate=0.0001, beta_1=0.0, beta_2=0.9),
-    c_optimizer=Adam(learning_rate=0.0001, beta_1=0.0, beta_2=0.9)
+    g_optimizer=Adam(learning_rate=0.00005, beta_1=0.0, beta_2=0.9),
+    c_optimizer=Adam(learning_rate=0.00005, beta_1=0.0, beta_2=0.9)
 )
 
 img_monitor = GANMonitor(num_img=16, latent_dim=latent_dim)
@@ -206,5 +219,5 @@ plt.ylabel("Loss")
 plt.legend()
 plt.grid(True)
 
-plt.savefig("wgan_loss_history.png")
+plt.savefig("wgan_loss_history_fine_tunning.png")
 plt.show()

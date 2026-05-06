@@ -31,14 +31,15 @@ class MaskedConvLayer(layers.Layer):
         )
         self.conv.build(input_shape)
         
-        # Création du masque
         kh, kw, cin, cout = self.conv.kernel.shape
         mask = np.ones((kh, kw, cin, cout), dtype='float32')
         center_h, center_w = kh // 2, kw // 2
-        
+        #supprime ligne
         mask[center_h + 1:, :, :, :] = 0.0
+        #pareil colonne
         mask[center_h, center_w + 1:, :, :] = 0.0
         if self.mask_type == 'A':
+            #  supprime le pixel actuel si on est type A
             mask[center_h, center_w, :, :] = 0.0
             
         self.mask = tf.constant(mask, dtype=tf.float32)
@@ -81,7 +82,6 @@ def main():
         loss='binary_crossentropy'
     )
 
-    print("Début de l'entraînement...")
     model.fit(
         x_train, x_train, 
         batch_size=config['training']['batch_size'], 
@@ -95,12 +95,10 @@ def generate_images(model, config):
     h, w, c = config['model']['input_shape']
     samples = np.zeros((num, h, w, c), dtype='float32')
     
-    print("\nGénération des images pixel par pixel...")
     for i in range(h):
         for j in range(w):
             probs = model.predict(samples, verbose=0)[:, i, j, 0]
             samples[:, i, j, 0] = (np.random.rand(num) < probs).astype('float32')
-        print(f"Progression : {int((i+1)/h*100)}%", end='\r')
     
     # Visualisation
     plt.figure(figsize=(6, 6))
