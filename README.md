@@ -63,7 +63,8 @@ For the Discriminator $D$:
 * **Generated data** ($y_i=0$): $p_i = D(G(z))$
 
 The loss becomes for the discrimintator:
-$$- (\mathbb{E}_{x}[\log D(x)] + \mathbb{E}_{z}[\log(1 - D(G(z)))])$$
+
+$$- (\mathbb{E}_{x}[\log D(x)] + \mathbb{E}_{z}[\log(1 - D(G(z)))]) $$
 
 for the generator
 
@@ -153,12 +154,75 @@ The goal is simple: every pixel before the current pixel we want to generate is 
 basically it treats image generation as a sequence, predicting one pixel at a time: $P(x) = \prod P(x_i | x_{<i})$.
 Unlike GANs, PixelCNN minimizes the **Negative Log-Likelihood (NLL)**. It is much more stable to train but slower to generate, as pixels must be created one by one.
 
-### 5. RealNVP (Flow-based Model)
-* **Concept:** Implementing non-volume preserving (NVP) transformations.
-* **Goal:** Use invertible mapping to transform a simple distribution into a complex data distribution.
+### 6. Normalization Models (GLOW)
+* **Goal:** Explore how normalization models generate new images.
 
-### 6. GLOW
-* **Goal:** Explore more efficient and scalable generative flows.
+In normalization models, the goal is to build a function that can normalize our datasets via a probabilistic function $q(z|x)$, where $z$ is a sample from our distribution and $x$ is an image from our dataset. However, we have a condition: this function must be reversible. Thus, we can determine a function $p(x|z)$ that generates an image from our distribution.
+
+This raises a question: how can deep learning create a process that can be inverted, turning a complex distribution into a simple one, like a Gaussian distribution? To do that, we have to understand the change of variables formula.
+
+Effectively, we want to transform a complex distribution into a simple one. If we have a function $f$ representing the distribution of our images in a certain dimension (e.g., $64 \times 64 \times 3$), it is complex. If there exists a change of variables technique to transform this into a function $g$—a function with the same dimension but following a Gaussian distribution—we will be able to map a sample from our Gaussian distribution back into our image space. This way, we can produce new images.
+
+**Change of Variables**
+
+Let's say we have a probability distribution in two dimensions such as:
+
+$$
+ \int_{0}^{2}  \int_{1}^{4} p_X(x) \,dx_1 \,dx_2 = 1
+$$
+
+with $x = (x_1, x_2)$ and $p_X(x) = \frac{(x_1 - 1)x_2}{9}$.
+Now, if we want to scale this distribution to fit into a square of size 1, we must define $z = (z_1,z_2)$ such as:
+
+$$
+z = f(x)
+$$
+$$
+z_1 = \frac{x_1 - 1}{3}
+$$
+$$
+z_2 = \frac{x_2}{2}
+$$
+
+We can notice that this function is reversible! We now have this new function:
+
+$$
+p_Z(z) = \frac{(3z_1 + 1 - 1)2z_2}{9} = \frac{2 z_1 z_2}{3}
+$$
+
+However, the integration gives $\frac{1}{6}$, not 1. To find a solution, we introduce the Jacobian determinant. The Jacobian of the function $z=f(x)$ is the matrix of first-order partial derivatives:
+
+$$
+\frac{\partial z}{\partial x}  = 
+\begin{bmatrix} \frac{\partial z_1}{\partial x_1} & \cdots & \frac{\partial z_1}{\partial x_n} \\ \vdots & \ddots & \vdots \\ 
+\frac{\partial z_m}{\partial x_1} & \cdots & \frac{\partial z_m}{\partial x_n} \end{bmatrix}
+$$
+
+For our function, we have:
+
+$$
+J = \begin{pmatrix} \frac{1}{3} & 0  \\
+                    0 & \frac{1}{2} \\
+\end{pmatrix}
+$$
+
+Its determinant is $\frac{1}{6}$. From this, we can determine that the general equation for the change of variables is:
+
+$$
+p_X(x)=p_Z(z) \left| \det\left(\frac{\partial z}{\partial x}\right) \right|
+$$
+
+However, there is an issue: computing the determinant costs $O(n^3)$ complexity, which is impossible for high-dimensional images. To solve this, we introduce the coupling layer.
+
+**Coupling Layer**
+
+<img src="https://uvadlc-notebooks.readthedocs.io/en/latest/_images/coupling_flow.svg" />
+
+1. **How they work:** The input $x$ is split into two parts: $[x_{1:d}, x_{d+1:D}]$. The first part is kept identical ($z_{1:d} = x_{1:d}$). The second part is transformed by an affine function (scale $s$ and translation $t$) that depends only on the first part: $z_{d+1:D} = x_{d+1:D} \odot \exp(s(x_{1:d})) + t(x_{1:d})$.
+
+2. **Triangular Jacobian:** Since $z_{1:d}$ only depends on $x_{1:d}$ and $z_{d+1:D}$ depends on both $x_{1:d}$ and $x_{d+1:D}$, the Jacobian matrix is lower triangular. The determinant is simply the product of the diagonal elements (the $\exp(s)$ terms), which is computationally very cheap.
+
+3. **Reversibility:** It is reversible because we can use the unmodified $z_{1:d}$ (which equals $x_{1:d}$) to recompute the same $s$ and $t$ values. We then just perform the inverse math: $x_{d+1:D} = (z_{d+1:D} - t(z_{1:d})) \odot \exp(-s(z_{1:d}))$.
 
 ### 7. Diffusion Models (DDPM)
 * **Architecture:** U-Net.
