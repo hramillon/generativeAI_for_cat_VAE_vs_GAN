@@ -64,8 +64,10 @@ For the Discriminator $D$:
 
 The loss becomes for the discrimintator:
 $$- (\mathbb{E}_{x}[\log D(x)] + \mathbb{E}_{z}[\log(1 - D(G(z)))])$$
+
 for the generator
-$$- (\mathbb{E}_{x}[\log D(G(z))])$$
+
+$$- (\mathbb{E}_{x}[\log D(G(z))]) $$
 
 **The Problem:**
 If the Generator is weak, images are too easy to recognize. The Discriminator reaches perfection too quickly, leading to **vanishing gradients**. The Generator stops improving because the loss signal becomes flat.
@@ -122,9 +124,12 @@ In the transition, a noise vector passes through an upsampling layer which incre
         <img src="md_ress/pro32*32.png" alt="Generated Cats 32*32" width="100%">
         </td>
     </tr>
-    <tr>
+</table>
+
+<table>
+    <tr>    
         <td width="100%">
-        <img src="md_ress/pro64*64.png" alt="Generated Cats 64*64" width="100%">
+            <img src="md_ress/pro64*64.png" alt="Generated Cats 64*64" width="100%">
         </td>
     </tr>
 </table>
