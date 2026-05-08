@@ -92,6 +92,43 @@ $$ \frac{|D(x_1) - D(x_2)|}{|x_1 - x_2|} \leq 1 $$
 
 In other words, we limit the rate of change between predictions. This ensures the model is stable because the gradient norm is bounded (it must be less than or equal to 1), preventing the "exploding gradient" problem.
 
+#### Progressive GAN
+
+Developed by NVIDIA Labs in 2017 to increase the stability and speed of GANs. The idea is simple: you first train on 4x4 images of your dataset and then increase the size to obtain better results.
+
+However, this training is not usual. Until now, we have built models to generate an image of a fixed size. To overcome this issue, we build a new type of training in which each resolution (except the first 4x4) is going to pass through two different training phases:
+
+1. **Transition:** in which the model is learning from the previous GAN while increasing the size.
+2. **Stabilization:** in which we train our GAN like we have done until now.
+
+The stabilization part is not very different from what we have done before. So let's see how the Transition works.
+
+In the transition, a noise vector passes through an upsampling layer which increases the size of the image. After that, the vector is divided into two paths: the first one goes through a new convolutional block to produce a new RGB value, and the second stays as it was in the previous resolution (the existing RGB). Each of them is multiplied by $\alpha$ and $1 - \alpha$ respectively, and they are finally added. This addition gives the new value for the transition.
+
+<table>
+    <tr>
+        <td width="50%">
+        <img src="md_ress/pro4*4.png" alt="Generated Cats 4*4" width="100%">
+        </td>
+        <td width="50%">
+        <img src="md_ress/pro8*8.png" alt="Generated Cats 8*8" width="100%">
+        </td>
+    </tr>
+    <tr>
+        <td width="50%">
+        <img src="md_ress/pro16*16.png" alt="Generated Cats 16*16" width="100%">
+        </td>
+        <td width="50%">
+        <img src="md_ress/pro32*32.png" alt="Generated Cats 32*32" width="100%">
+        </td>
+    </tr>
+    <tr>
+        <td width="100%">
+        <img src="md_ress/pro64*64.png" alt="Generated Cats 64*64" width="100%">
+        </td>
+    </tr>
+</table>
+
 ### 4. Introduction to PixelCNN
 * **Dataset:** MNIST. the cat dataset would ask too much computanional power.
 * **Goal:** Observe how an autoregressive model produces images pixel by pixel, conditioned on previous ones.
@@ -99,7 +136,7 @@ In other words, we limit the rate of change between predictions. This ensures th
 <table>
     <tr>
         <td width="50%">
-        <img src="md_ress/pixelCNN.png" alt="Generated Cats" width="100%">
+        <img src="md_ress/pixelCNN.png" alt="Generated Mnists Numbers" width="100%">
         </td>
     </tr>
 </table>
