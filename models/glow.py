@@ -171,11 +171,11 @@ class WarmupLR(tf.keras.callbacks.Callback):
     def __init__(self, lr=1e-4, n=10): self.lr=lr; self.n=n
     def on_epoch_begin(self, epoch, logs=None):
         if epoch < self.n:
-            tf.keras.backend.set_value(self.model.optimizer.learning_rate, self.lr*(epoch+1)/self.n)
+            self.model.optimizer.learning_rate = float(self.lr*(epoch+1)/self.n)
 
-model = GLOW(L=3, K=8, dim=256, T=0.7)
+model = GLOW(L=3, K=5, dim=128, T=0.7)
 model.compile(optimizer=optimizers.Adam(1e-5))
-model.fit(normalized_data, epochs=300, callbacks=[
+model.fit(normalized_data, epochs=1000, callbacks=[
     DiagnosticCallback(), WarmupLR(1e-4, 10),
     tf.keras.callbacks.TerminateOnNaN(),
     tf.keras.callbacks.ModelCheckpoint(OUTPUT_DIR+"best.keras", save_best_only=True, monitor="loss"),
