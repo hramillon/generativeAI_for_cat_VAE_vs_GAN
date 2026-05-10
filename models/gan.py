@@ -7,7 +7,10 @@ import yaml
 from tensorflow.keras import losses, metrics
 import matplotlib.pyplot as plt
 
-# Charger les données MNIST
+# ---------------------------------------------------------------------------
+# PREPARE DATA AND CONFIGURATION
+# ---------------------------------------------------------------------------
+
 mnist = keras.datasets.mnist
 (x_train, y_train), (x_test, y_test) = mnist.load_data()
 
@@ -28,6 +31,10 @@ k = config['model_params']['kernel_size']
 epochs = config['training_params']['epochs']
 learning_rate = config['training_params']['learning_rate']
 batch_size = config['training_params']['batch_size']
+
+# ---------------------------------------------------------------------------
+# GAN MODEL
+# ---------------------------------------------------------------------------
 
 """ discriminteur """
 
@@ -74,6 +81,11 @@ def build_generator(latent_dim):
 
 discriminator = build_discriminator()
 generator = build_generator(latent_dim)
+
+# ---------------------------------------------------------------------------
+# GAN CLASS
+# ---------------------------------------------------------------------------
+
 class DCGAN(models.Model):
     def __init__(self, discriminator, generator, latent_dim):
         super(DCGAN, self).__init__()
@@ -83,6 +95,7 @@ class DCGAN(models.Model):
 
     def compile(self, d_optimizer, g_optimizer):
         super(DCGAN, self).compile()
+        # dans le DCGAN on utilise la binary cross entropy (à rediscuter)
         self.loss_fn = losses.BinaryCrossentropy()
         self.d_optimizer = d_optimizer
         self.g_optimizer = g_optimizer
@@ -96,12 +109,16 @@ class DCGAN(models.Model):
     def train_step(self, data):
         real_images = data 
         batch_size = tf.shape(real_images)[0]
+        # d'abord pour entrainer on echantillone un lot de vecteur de l'espace multivariée
         random_latent_vectors = tf.random.normal(shape=(batch_size, self.latent_dim))
 
         with tf.GradientTape() as gen_tape, tf.GradientTape() as disc_tape:
+            # le générateur utilise les vecteurs pour faire des images
             generated_images = self.generator(random_latent_vectors, training=True)
             
+            # on demande l'avis du critique sur les images réelles
             real_predictions = self.discriminator(real_images, training=True)
+            # puis sur les imagesinventées
             fake_predictions = self.discriminator(generated_images, training=True)
 
             real_labels = tf.ones_like(real_predictions) 
@@ -110,24 +127,28 @@ class DCGAN(models.Model):
             real_noisy_labels = real_labels - 0.1 * tf.random.uniform(tf.shape(real_predictions))
             fake_noisy_labels = fake_labels + 0.1 * tf.random.uniform(tf.shape(fake_predictions))
 
+            # Loss = perte d'entropie croisée sur les réelles + les fausses (critique)
             d_real_loss = self.loss_fn(real_noisy_labels, real_predictions)
             d_fake_loss = self.loss_fn(fake_noisy_labels, fake_predictions)
             d_loss = (d_real_loss + d_fake_loss) / 2.0
-
+            #loss = entropie croisée binaire entre prédictions du discriminateur et une étiquette ayant la valeur 1
             g_loss = self.loss_fn(real_labels, fake_predictions)
         
         grad_d = disc_tape.gradient(d_loss, self.discriminator.trainable_variables)
         grad_g = gen_tape.gradient(g_loss, self.generator.trainable_variables)
 
+        #on met à jour les poids séparément 
         self.d_optimizer.apply_gradients(zip(grad_d, self.discriminator.trainable_variables))
         self.g_optimizer.apply_gradients(zip(grad_g, self.generator.trainable_variables))
-        # --------------------------------------------------
 
         self.d_loss_metric.update_state(d_loss)
         self.g_loss_metric.update_state(g_loss)
 
         return {m.name: m.result() for m in self.metrics}
 
+# ---------------------------------------------------------------------------
+# EXECUTION
+# ---------------------------------------------------------------------------
 
 dcgan = DCGAN(discriminator=discriminator, generator=generator, latent_dim=latent_dim)
 dcgan.compile(
@@ -143,6 +164,10 @@ save_discriminator = config['paths']['save_discriminator']
 
 generator.save(save_generator)
 discriminator.save(save_discriminator)
+
+# ---------------------------------------------------------------------------
+# GRAPHIQUE(S)
+# ---------------------------------------------------------------------------
 
 plt.figure(figsize=(10, 5))
 plt.plot(history.history["d_loss"], label="Discriminateur (D)")

@@ -8,8 +8,11 @@ import yaml
 import matplotlib.pyplot as plt
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras import mixed_precision
-# --- CONFIGURATION ---
 
+# ---------------------------------------------------------------------------
+# PREPARE DATA AND CONFIGURATION
+# ---------------------------------------------------------------------------
+#test GPU sur machine CREMI
 gpus = tf.config.list_physical_devices('GPU')
 if gpus:
     try:
@@ -28,7 +31,7 @@ epochs = config['training_params']['epochs']
 ressources = config['paths']['ressources']
 batch_size = config['training_params']['batch_size']
 
-# --- DATASET ---
+# --- DATASET SUR CHAT 64*64*3 ---
 train_data = tf.keras.utils.image_dataset_from_directory(
     ressources,
     labels=None,
@@ -46,16 +49,19 @@ data_augmentation = tf.keras.Sequential([
 ])
 
 def preprocess(img):
-    # 1. Normalisation entre -1 et 1
+    # normalisation entre -1 et 1 au lieu de 0 et 1 (/255.0)
     img = (tf.cast(img, "float32") - 127.5) / 127.5
-    # 2. Augmentation (uniquement pendant l'entraînement)
     img = data_augmentation(img, training=True)
     return img
 
 train = train_data.map(preprocess, num_parallel_calls=tf.data.AUTOTUNE)
 train = train.prefetch(buffer_size=tf.data.AUTOTUNE)
 
-# --- ARCHITECTURE ---
+# ---------------------------------------------------------------------------
+# WGAN-GP MODEL
+# ---------------------------------------------------------------------------
+
+""" générateur """
 def build_generator(latent_dim):
     model = models.Sequential(name="generator")
     model.add(layers.Input(shape=(latent_dim,)))
@@ -75,28 +81,24 @@ def build_generator(latent_dim):
     
     return model
 
+""" critique """
 def build_critic():
     model = models.Sequential(name="critic")
     model.add(layers.Input(shape=(64, 64, 3)))
     
-    model.add(layers.Conv2D(64, 4, strides=2, padding="same"))
-    model.add(layers.LeakyReLU(0.2))
-    
-    model.add(layers.Conv2D(128, 4, strides=2, padding="same"))
-    model.add(layers.LeakyReLU(0.2))
-    
-    model.add(layers.Conv2D(256, 4, strides=2, padding="same"))
-    model.add(layers.LeakyReLU(0.2))
-    
-    model.add(layers.Conv2D(512, 4, strides=2, padding="same"))
-    model.add(layers.LeakyReLU(0.2))
+    for filters in [64, 128, 256,512]:
+        model.add(layers.Conv2D(filters, 4, strides=2, padding="same"))
+        model.add(layers.LeakyReLU(0.2))
     
     model.add(layers.Flatten())
     model.add(layers.Dropout(0.3))
     model.add(layers.Dense(1))
     return model
 
-# --- WGAN-GP LOGIC ---
+# ---------------------------------------------------------------------------
+# WGAN-GP CLASS
+# ---------------------------------------------------------------------------
+
 class WGAN(keras.Model):
     def __init__(self, generator, critic, latent_dim, gp_weight=10.0, n_critic=8):
         super().__init__()
@@ -114,22 +116,27 @@ class WGAN(keras.Model):
         self.g_loss_metric = keras.metrics.Mean(name="g_loss")
 
     def gradient_penalty(self, batch_size, real_images, fake_images):
+        # chaque image reçoit un nb aléatoire compris entre 0 et 1, stocké dans le vecteur alpha
         alpha = tf.random.uniform([batch_size, 1, 1, 1], 0.0, 1.0)
+        # on interpole un ensemble d'images
         interpolated = real_images + alpha * (fake_images - real_images)
         
         with tf.GradientTape() as gp_tape:
             gp_tape.watch(interpolated)
+            #le critique donne son avis sur les images interpolées
             pred = self.critic(interpolated, training=True)
         
+        # le gradient des prédicitions est calulée par rapport aux images d'entrée
         grads = gp_tape.gradient(pred, [interpolated])[0]
-        # Epsilon à 1e-12 pour la précision mathématique
+        # norme L2
         norm = tf.sqrt(tf.reduce_sum(tf.square(grads), axis=[1, 2, 3]) + 1e-12)
+        # distance au carré entre L2 et 1
         return tf.reduce_mean((norm - 1.0) ** 2)
 
     def train_step(self, real_images):
         batch_size = tf.shape(real_images)[0]
         
-        # 1. Entraînement du Critic (toujours n_critic fois)
+        # entraînement du Critic (toujours n_critic fois)
         for i in range(self.n_critic):
             z = tf.random.normal(shape=(batch_size, self.latent_dim))
             with tf.GradientTape() as tape:
@@ -137,30 +144,36 @@ class WGAN(keras.Model):
                 fake_logits = self.critic(fake_images, training=True)
                 real_logits = self.critic(real_images, training=True)
                 
+                # calcul perte Wasserstein pour le critique donc différence entre la prédictionmoyenne  pour images fausses / réelles
                 cost = tf.reduce_mean(fake_logits) - tf.reduce_mean(real_logits)
+                # terme depénalité de gradient 
                 gp = self.gradient_penalty(batch_size, real_images, fake_images)
+                #loss = somme pondérée par le coût
                 c_loss = cost + gp * self.gp_weight
                 
             grads = tape.gradient(c_loss, self.critic.trainable_variables)
-            # Suppression du clip_by_global_norm : la GP s'occupe de la contrainte !
+            # mise à  jour des poids du critique
             self.c_optimizer.apply_gradients(zip(grads, self.critic.trainable_variables))
 
-        # 2. Entraînement du Générateur
         z = tf.random.normal(shape=(batch_size, self.latent_dim))
         with tf.GradientTape() as tape:
             generated_images = self.generator(z, training=True)
             gen_logits = self.critic(generated_images, training=True)
+            # paertewasserstein pour générateur
             g_loss = -tf.reduce_mean(gen_logits)
             
         grads = tape.gradient(g_loss, self.generator.trainable_variables)
-        # Suppression du clipping manuel ici aussi pour laisser le flot de gradient naturel
+        # met à jour le générateur
         self.g_optimizer.apply_gradients(zip(grads, self.generator.trainable_variables))
         
         self.c_loss_metric.update_state(c_loss)
         self.g_loss_metric.update_state(g_loss)
         return {"c_loss": self.c_loss_metric.result(), "g_loss": self.g_loss_metric.result()}
 
-# --- MONITORING (MODIFIÉ POUR 5 EPOCHS) ---
+# ---------------------------------------------------------------------------
+# WGAN-GP MONITORING
+# ---------------------------------------------------------------------------
+
 class GANMonitor(keras.callbacks.Callback):
     def __init__(self, num_img=16, latent_dim=100):
         super().__init__()
@@ -184,7 +197,10 @@ class GANMonitor(keras.callbacks.Callback):
             self.model.generator.save(f"training/wgan_gen_checkpoints/gen_epoch_{epoch+1}.keras")
             self.model.critic.save(f"training/wgan_cri_checkpoints/cri_epoch_{epoch+1}.keras")
 
-# --- EXECUTION ---
+# ---------------------------------------------------------------------------
+# EXECUTION
+# ---------------------------------------------------------------------------
+
 os.makedirs("training/wgan_gen_checkpoints", exist_ok=True)
 os.makedirs("training/wgan_cri_checkpoints", exist_ok=True)
 
@@ -209,6 +225,10 @@ save_crit_path = config['paths']['save_discriminator']
 
 generator.save(save_gen_path)
 critic.save(save_crit_path)
+
+# ---------------------------------------------------------------------------
+# GRAPHIQUE(S)
+# ---------------------------------------------------------------------------
 
 plt.figure(figsize=(10, 5))
 plt.plot(history.history["c_loss"], label="Critique")
