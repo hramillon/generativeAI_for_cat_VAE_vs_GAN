@@ -14,6 +14,25 @@ The primary objective is to understand how latent space representation allows mo
 * **Compare** the performance and output quality across different architectures.
 
 ---
+## Requirements
+
+Python 3.10+ is recommended. Install dependencies with:
+
+```bash
+pip install -r requirements.txt
+```
+
+The following packages are required:
+
+- `tensorflow` — model building and training
+- `numpy` — numerical computations
+- `PyYAML` — config file parsing
+- `matplotlib` — visualizations and loss curves
+- `scikit-learn` — preprocessing and evaluation metrics
+- `jupyterlab` — running the notebooks
+- `seaborn` — enhanced data visualizations
+
+---
 
 ## Approach
 
