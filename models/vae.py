@@ -6,6 +6,10 @@ import numpy as np
 import yaml
 from tensorflow.keras import losses, metrics
 
+# ---------------------------------------------------------------------------
+# PREPARE DATA AND YAML
+# ---------------------------------------------------------------------------
+
 with open("configs/vae_config.yaml", "r") as f:
     config = yaml.safe_load(f)
 
@@ -25,7 +29,7 @@ conv_filters = config['model_params']['conv_filters']
 k = config['model_params']['kernel_size']
 
 """ sampling to decode """
-
+# Very important for a VAE it shapes the latent space
 class Sampling(layers.Layer):
     def call(self,inputs):
         z_mean, z_log_var = inputs
@@ -34,6 +38,10 @@ class Sampling(layers.Layer):
         epsilon = K.random_normal(shape=(batch,dim))
         return z_mean + tf.exp(0.5 * z_log_var) * epsilon
 
+# ---------------------------------------------------------------------------
+# VAE MODEL
+# ---------------------------------------------------------------------------
+# more or less the same thing as we did with the auto encoder
 """ encodeur """
 
 encoder_input = layers.Input(
@@ -76,7 +84,9 @@ reconstruction = decoder(z)
 
 autoencoder = Model(inputs=encoder_input, outputs=reconstruction)
 
-""" entainement VAE """
+# ---------------------------------------------------------------------------
+# VAE CLASS
+# ---------------------------------------------------------------------------
 
 class VAE(models.Model):
     def __init__(self, encoder, decoder, **kwargs):
@@ -85,6 +95,7 @@ class VAE(models.Model):
         self.decoder = decoder
         self.total_loss_tracker = metrics.Mean(name="total_loss")
         self.reconstruction_loss_tracker = metrics.Mean(name="reconstruction_loss")
+        # divergence de Kullback-Leibler
         self.kl_loss_tracker = metrics.Mean(name="kl_loss")
     
     @property
@@ -95,13 +106,17 @@ class VAE(models.Model):
             self.kl_loss_tracker]
         
     def call(self, inputs):
+        #quand on appel cette fonction on souhaite obtenir le VAE sur une image particulière
         z_mean, z_log_var, z = encoder(inputs)
         reconstruction = decoder(z)
         return z_mean, z_log_var,  reconstruction
     
+    #étape de l'entrainement decrite
     def train_step(self, data):
+        # Gradient Tape permet de calculer les gradients d'un model pendant la passe avant 
         with tf.GradientTape() as tape:
             z_mean, z_log_var, reconstruction = self(data)
+            #on prend Beta = 500
             reconstruction_loss = tf.reduce_mean(
                 500 *
                 losses.binary_crossentropy(
@@ -114,6 +129,7 @@ class VAE(models.Model):
                     axis = 1,
                 )
             )
+            # perte = parte de reconstruction + divergence kl
             total_loss = reconstruction_loss + kl_loss
 
         grads = tape.gradient(total_loss, self.trainable_weights)
@@ -128,6 +144,10 @@ class VAE(models.Model):
 vae = VAE (encoder, decoder)
 
 """ Paramètres d'entraînements du modèle """
+
+# ---------------------------------------------------------------------------
+# EXECUTION
+# ---------------------------------------------------------------------------
 
 learning_rate = config['training_params']['learning_rate']
 batch_size = config['training_params']['batch_size']
