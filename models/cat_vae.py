@@ -6,7 +6,9 @@ import numpy as np
 import yaml
 from tensorflow.keras import losses, metrics
 
-# --- CONFIGURATION ---
+# ---------------------------------------------------------------------------
+# PREPARE DATA AND CONFIGURATION
+# ---------------------------------------------------------------------------
 with open("configs/cat_vae_config.yaml", "r") as f:
     config = yaml.safe_load(f)
 
@@ -18,6 +20,7 @@ latent_dim = config['model_params']['latent_dim']
 conv_filters = config['model_params']['conv_filters']
 k = config['model_params']['kernel_size']
 
+# 30k images of cat 64*64*3
 train_data = tf.keras.utils.image_dataset_from_directory(
     ressources,
     labels=None,
@@ -28,11 +31,13 @@ train_data = tf.keras.utils.image_dataset_from_directory(
     seed=42
 )
 
+#data augmentation : small roation + horizontal
 data_augmentation = tf.keras.Sequential([
     layers.RandomFlip("horizontal"),
     layers.RandomRotation(0.05),
 ])
 
+#normalization
 def preprocess(img):
     img = tf.cast(img, "float32") / 255.0  
     return img
@@ -40,6 +45,8 @@ def preprocess(img):
 train = train_data.map(preprocess).map(lambda x: data_augmentation(x, training=True))
 train = train.prefetch(buffer_size=tf.data.AUTOTUNE)
 
+""" sampling to decode """
+# Very important for a VAE it shapes the latent space
 class Sampling(layers.Layer):
     def call(self, inputs):
         z_mean, z_log_var = inputs
@@ -47,8 +54,11 @@ class Sampling(layers.Layer):
         dim = tf.shape(z_mean)[1]
         epsilon = tf.random.normal(shape=(batch, dim))
         return z_mean + tf.exp(0.5 * z_log_var) * epsilon
-
-# ENCODER
+    
+# ---------------------------------------------------------------------------
+# VAE MODEL
+# ---------------------------------------------------------------------------
+""" encodeur """
 encoder_input = layers.Input(shape=(IMAGE_SIZE, IMAGE_SIZE, CHANNELS), name="encoder_input")
 x = encoder_input
 for filters in conv_filters:
@@ -66,7 +76,8 @@ z_log_var = layers.Dense(latent_dim, name="z_log_var")(x)
 z = Sampling()([z_mean, z_log_var])
 encoder = models.Model(encoder_input, [z_mean, z_log_var, z], name="encoder")
 
-# DECODER
+""" décodeur """
+
 decoder_input = layers.Input(shape=(latent_dim,), name="decoder_input")
 x = layers.Dense(int(np.prod(shape_before_flattening)))(decoder_input)
 x = layers.Reshape(shape_before_flattening)(x)
@@ -78,6 +89,10 @@ for filters in reversed(conv_filters):
 
 decoder_output = layers.Conv2DTranspose(CHANNELS, kernel_size=k, strides=1, padding="same", activation="sigmoid")(x)
 decoder = models.Model(decoder_input, decoder_output, name="decoder")
+
+# ---------------------------------------------------------------------------
+# VAE CLASS
+# ---------------------------------------------------------------------------
 
 class VAE(models.Model):
     def __init__(self, encoder, decoder, **kwargs):
@@ -93,6 +108,7 @@ class VAE(models.Model):
         return [self.total_loss_tracker, self.reconstruction_loss_tracker, self.kl_loss_tracker]
         
     def train_step(self, data):
+        # Gradient Tape permet de calculer les gradients d'un model pendant la passe avant 
         with tf.GradientTape() as tape:
             z_mean, z_log_var, z = self.encoder(data)
             reconstruction = self.decoder(z)
@@ -101,10 +117,10 @@ class VAE(models.Model):
                 6000 * losses.binary_crossentropy(data, reconstruction), 
                 axis=(1, 2)
             )
-            
+            #Beta = 6000
             kl_loss = -0.5 * (1 + z_log_var - tf.square(z_mean) - tf.exp(z_log_var))
             kl_loss = tf.reduce_mean(tf.reduce_sum(kl_loss, axis=1))
-            
+            # perte = parte de reconstruction + divergence kl
             total_loss = reconstruction_loss + kl_loss
 
         grads = tape.gradient(total_loss, self.trainable_weights)
@@ -115,6 +131,11 @@ class VAE(models.Model):
         self.kl_loss_tracker.update_state(kl_loss)
         return {m.name: m.result() for m in self.metrics}
 
+""" Paramètres d'entraînements du modèle """
+
+# ---------------------------------------------------------------------------
+# EXECUTION
+# ---------------------------------------------------------------------------
 
 vae = VAE(encoder, decoder)
 learning_rate = config['training_params']['learning_rate']
