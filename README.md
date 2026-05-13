@@ -173,6 +173,10 @@ The goal is simple: every pixel before the current pixel we want to generate is 
 basically it treats image generation as a sequence, predicting one pixel at a time: $P(x) = \prod P(x_i | x_{<i})$.
 Unlike GANs, PixelCNN minimizes the **Negative Log-Likelihood (NLL)**. It is much more stable to train but slower to generate, as pixels must be created one by one.
 
+
+**For those sections the 30k images and the size of the images (64\*64) is an issue to have very good results I'll share the results I succesfully obtained**
+
+
 ### 6. Normalization Models (GLOW)
 * **Goal:** Explore how normalization models generate new images.
 
@@ -246,6 +250,59 @@ However, there is an issue: computing the determinant costs $O(n^3)$ complexity,
 ### 7. Diffusion Models (DDPM)
 * **Architecture:** U-Net.
 * **Goal:** Learn the reverse process of adding noise to data to generate samples from pure Gaussian noise.
+
+The goal  of a *DDM*, Denoising Diffusion Model, is to learn how to train a model to go from a random noise to an image of our dataset  (our seems beung take from our dataset).
+lets start with the forward process : from our dataset to gaussian nose.
+**Forward Process**
+let's suppose we have an image $x_0$ and we want to turn this image into a random gaussian noise through $ T= 1000$ steps, in other word $x_T$ as an average equal to zero and a variance equal to one. We can define a function $q$ which add a gaussian noiwe with a variace equal to $\beta_t$ to an image $x_{t-1}$ to generate a new image $x_t$
+
+We do this process $T$ times.
+
+This mathematical process can be define by :
+$$
+w_t = \sqrt{1-\beta_t}x_{t-1} + \sqrt{\beta_t}\epsilon_{t-1}
+$$
+the goal is to keep the same variance during the process.
+If we say $x_{t-1}$ has a null average and unitarian variance then because $var(aX + bY) = a^2Var(X) + b^2Var(Y)$ then $x_t$ has a variance of $1-\beta_t + \beta_t = 1$.
+In other words we have : 
+$$
+q(x_t | x_{t-1}) = \mathcal{N}(x_t; \sqrt{1 - \beta_t}x_{t-1}, \beta_t\mathcal{I})
+$$
+Furtermore if we have  :$\alpha_t = 1 - \beta_t$ and $\bar{\alpha_t} = \prod_{i=1}^{t} \alpha_i$ we also have
+$$
+x_t = \sqrt{\bar{\alpha_t}}x_{0} + \sqrt{1- \bar{\alpha_t}}\epsilon
+$$
+$$
+q(x_t | x_0) = \mathcal{N}(x_t; \sqrt{\bar{\alpha_t}}x_{0}, (1- \bar{\alpha_t})\mathcal{I})
+$$
+
+**Choice of $\beta_t$**
+
+We can choose freely a value for $\beta_t$. We can choose a linear value like in the orginal article of Ho but we can also choose an  ordonnancement de diffusion in cosinus like Alex Nichol and Prafulla Dhariwal in 2021.
+If we have
+$$
+\bar{\alpha_t = cos^2(\frac{t}{T} \frac{\pi}{2})}
+$$
+we have (with $cos^2(x) + sin^2(x) = 1$ ) :
+$$
+x_t = cos(\frac{t}{T} \frac{\pi}{2})x_0 + sin(\frac{t}{T} \frac{\pi}{2})\epsilon
+$$
+
+**Backward Process**
+
+Now we want to create a neural network such as $p(x_{t-1} | x_t)$ can reverse the noising. In other words, we want to approximate the distribution $q(x_{t-1} | x_t)$. If we can do that, then we can create new images from the distribution $\mathcal{N}(0, \mathcal{I})$.
+
+To do that, the goal is to compute the transformation of $x_0$ to $x_t = \sqrt{\bar{\alpha_t}}x_{0} + \sqrt{1 - \bar{\alpha_t}}\epsilon$. After that, we give the value $\bar{\alpha_t}$ to our neural network and it has to predict the value $\epsilon$.
+
+To perform this prediction, we generally use a **U-Net** architecture. This network is composed of different specialized blocks:
+
+A **Residual Block** is the core unit of the network. Instead of learning a direct mapping, it learns the difference (the residue) between the input and output. It uses a skip connection that adds the original input $x$ to the result of the internal convolutions: $f(x) + x$.
+
+The **Down Block** is used in the first half of the U-Net. Its role is to reduce the spatial resolution of the image (making it smaller in width and height) while increasing the number of feature channels. This allows the model to "see" the image at a more abstract, global level to identify what kind of noise needs to be removed across the whole scene.
+
+The **Up Block** is used in the second half of the U-Net. It does the opposite of the Down Block: it increases the spatial resolution (upsampling) to bring the image back to its original size. It combines the abstract features learned in the bottleneck with high-resolution details passed directly from the Down Blocks via skip connections.
+
+The **U-Net** is the engine of the Backward Process. Its "U" shape allows it to first compress the noisy image $x_t$ to capture its global context (via Down Blocks) and then reconstruct the precise noise map $\epsilon$ (via Up Blocks). In our DDM, the U-Net takes the noisy image $x_t$ and a representation of the timestep $t$ as inputs. Its final output is the predicted noise $\epsilon$. Once we know $\epsilon$, we can subtract it from $x_t$ to step back toward the clean image $x_0$, effectively reversing the entropy added during the Forward Process.
 
 ## Bibliographie
 
