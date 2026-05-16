@@ -254,7 +254,7 @@ However, there is an issue: computing the determinant costs $O(n^3)$ complexity,
 The goal  of a *DDM*, Denoising Diffusion Model, is to learn how to train a model to go from a random noise to an image of our dataset  (our seems beung take from our dataset).
 lets start with the forward process : from our dataset to gaussian nose.
 **Forward Process**
-let's suppose we have an image $x_0$ and we want to turn this image into a random gaussian noise through $ T= 1000$ steps, in other word $x_T$ as an average equal to zero and a variance equal to one. We can define a function $q$ which add a gaussian noiwe with a variace equal to $\beta_t$ to an image $x_{t-1}$ to generate a new image $x_t$
+let's suppose we have an image $x_0$ and we want to turn this image into a random gaussian noise through $T = 1000$ steps, in other word $x_T$ as an average equal to zero and a variance equal to one. We can define a function $q$ which add a gaussian noiwe with a variace equal to $\beta_t$ to an image $x_{t-1}$ to generate a new image $x_t$
 
 We do this process $T$ times.
 

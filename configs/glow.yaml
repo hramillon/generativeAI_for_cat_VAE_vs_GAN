@@ -1,0 +1,7 @@
+training_params:
+  batch_size: 32
+model_params:
+  L: 3
+  K: 5
+  dim: 128
+  T: 0.7
