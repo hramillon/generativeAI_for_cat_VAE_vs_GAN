@@ -217,8 +217,11 @@ However, the integration gives $\frac{1}{6}$, not 1. To find a solution, we intr
 
 $$
 \frac{\partial z}{\partial x}  = 
-\begin{bmatrix} \frac{\partial z_1}{\partial x_1} & \cdots & \frac{\partial z_1}{\partial x_n} \\ \vdots & \ddots & \vdots \\ 
-\frac{\partial z_m}{\partial x_1} & \cdots & \frac{\partial z_m}{\partial x_n} \end{bmatrix}
+\begin{bmatrix} 
+    \frac{\partial z_1}{\partial x_1} & \cdots & \frac{\partial z_1}{\partial x_n} \\ 
+    \vdots & \ddots & \vdots \\ 
+    \frac{\partial z_m}{\partial x_1} & \cdots & \frac{\partial z_m}{\partial x_n} 
+\end{bmatrix}
 $$
 
 For our function, we have:
@@ -246,6 +249,13 @@ However, there is an issue: computing the determinant costs $O(n^3)$ complexity,
 2. **Triangular Jacobian:** Since $z_{1:d}$ only depends on $x_{1:d}$ and $z_{d+1:D}$ depends on both $x_{1:d}$ and $x_{d+1:D}$, the Jacobian matrix is lower triangular. The determinant is simply the product of the diagonal elements (the $\exp(s)$ terms), which is computationally very cheap.
 
 3. **Reversibility:** It is reversible because we can use the unmodified $z_{1:d}$ (which equals $x_{1:d}$) to recompute the same $s$ and $t$ values. We then just perform the inverse math: $x_{d+1:D} = (z_{d+1:D} - t(z_{1:d})) \odot \exp(-s(z_{1:d}))$.
+<table>
+    <tr>
+        <td width="50%">
+        <img src="md_ress/glow.png" alt="Generated cats with GLOW" width="100%">
+        </td>
+    </tr>
+</table>
 
 ### 7. Diffusion Models (DDPM)
 * **Architecture:** U-Net.
@@ -258,34 +268,46 @@ let's suppose we have an image $x_0$ and we want to turn this image into a rando
 
 We do this process $T$ times.
 
-This mathematical process can be define by :
+This mathematical process can be defined by:
+
 $$
 w_t = \sqrt{1-\beta_t}x_{t-1} + \sqrt{\beta_t}\epsilon_{t-1}
 $$
-the goal is to keep the same variance during the process.
-If we say $x_{t-1}$ has a null average and unitarian variance then because $var(aX + bY) = a^2Var(X) + b^2Var(Y)$ then $x_t$ has a variance of $1-\beta_t + \beta_t = 1$.
-In other words we have : 
+
+The goal is to keep the same variance during the process.
+
+If we say $x_{t-1}$ has a null average and unitarian variance then because $\text{var}(aX + bY) = a^2\text{Var}(X) + b^2\text{Var}(Y)$ then $x_t$ has a variance of $1-\beta_t + \beta_t = 1$.
+
+In other words we have:
+
 $$
 q(x_t | x_{t-1}) = \mathcal{N}(x_t; \sqrt{1 - \beta_t}x_{t-1}, \beta_t\mathcal{I})
 $$
-Furtermore if we have  :$\alpha_t = 1 - \beta_t$ and $\bar{\alpha_t} = \prod_{i=1}^{t} \alpha_i$ we also have
+
+Furthermore if we have: $\alpha_t = 1 - \beta_t$ and $\bar{\alpha}_t = \prod_{i=1}^{t} \alpha_i$ we also have:
+
 $$
-x_t = \sqrt{\bar{\alpha_t}}x_{0} + \sqrt{1- \bar{\alpha_t}}\epsilon
+x_t = \sqrt{\bar{\alpha}_t}x_{0} + \sqrt{1- \bar{\alpha}_t}\epsilon
 $$
+
 $$
-q(x_t | x_0) = \mathcal{N}(x_t; \sqrt{\bar{\alpha_t}}x_{0}, (1- \bar{\alpha_t})\mathcal{I})
+q(x_t | x_0) = \mathcal{N}(x_t; \sqrt{\bar{\alpha}_t}x_{0}, (1- \bar{\alpha}_t)\mathcal{I})
 $$
 
 **Choice of $\beta_t$**
 
-We can choose freely a value for $\beta_t$. We can choose a linear value like in the orginal article of Ho but we can also choose an  ordonnancement de diffusion in cosinus like Alex Nichol and Prafulla Dhariwal in 2021.
-If we have
+We can choose freely a value for $\beta_t$. We can choose a linear value like in the original article of Ho but we can also choose an ordonnancement de diffusion in cosinus like Alex Nichol and Prafulla Dhariwal in 2021.
+
+If we have:
+
 $$
-\bar{\alpha_t = cos^2(\frac{t}{T} \frac{\pi}{2})}
+\bar{\alpha}_t = \cos^2\left(\frac{t}{T} \frac{\pi}{2}\right)
 $$
-we have (with $cos^2(x) + sin^2(x) = 1$ ) :
+
+we have (with $\cos^2(x) + \sin^2(x) = 1$):
+
 $$
-x_t = cos(\frac{t}{T} \frac{\pi}{2})x_0 + sin(\frac{t}{T} \frac{\pi}{2})\epsilon
+x_t = \cos\left(\frac{t}{T} \frac{\pi}{2}\right)x_0 + \sin\left(\frac{t}{T} \frac{\pi}{2}\right)\epsilon
 $$
 
 **Backward Process**
@@ -303,6 +325,14 @@ The **Down Block** is used in the first half of the U-Net. Its role is to reduce
 The **Up Block** is used in the second half of the U-Net. It does the opposite of the Down Block: it increases the spatial resolution (upsampling) to bring the image back to its original size. It combines the abstract features learned in the bottleneck with high-resolution details passed directly from the Down Blocks via skip connections.
 
 The **U-Net** is the engine of the Backward Process. Its "U" shape allows it to first compress the noisy image $x_t$ to capture its global context (via Down Blocks) and then reconstruct the precise noise map $\epsilon$ (via Up Blocks). In our DDM, the U-Net takes the noisy image $x_t$ and a representation of the timestep $t$ as inputs. Its final output is the predicted noise $\epsilon$. Once we know $\epsilon$, we can subtract it from $x_t$ to step back toward the clean image $x_0$, effectively reversing the entropy added during the Forward Process.
+
+<table>
+    <tr>
+        <td width="50%">
+        <img src="md_ress/ddm.png" alt="Generated cats with U-net" width="100%">
+        </td>
+    </tr>
+</table>
 
 ## Bibliographie
 
